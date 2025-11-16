@@ -1,0 +1,36 @@
+VERSION = 1,
+
+option KnowYourCalories.UseProgressBar
+{
+    type = boolean,
+    default = false,
+    page = KnowYourCalories,
+    translation = KnowYourCalories_UseProgressBar,
+}
+
+option KnowYourCalories.CalorieNumberShown
+{
+    type = enum,
+    numValues = 4,
+    default = 2,
+    page = KnowYourCalories,
+    translation = KnowYourCalories_CalorieNumberShown,
+}
+
+option KnowYourCalories.NeedNutritionist
+{
+    type = boolean,
+    default = true,
+    page = KnowYourCalories,
+    translation = KnowYourCalories_NeedNutritionist,
+}
+
+option KnowYourCalories.NeedCookingLevel
+{
+    type = integer,
+    min = 0,
+    max = 11,
+    default = 5,
+    page = KnowYourCalories,
+    translation = KnowYourCalories_NeedCookingLevel,
+}
