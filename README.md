@@ -1,6 +1,16 @@
 # Know Your Calories
 A mod for the game "Project Zomboid"
 
+### Links to my other Mods
+- Steam
+  - [Know Your Calories](https://steamcommunity.com/sharedfiles/filedetails/?id=3257953004)
+  - [Craftable Tires](https://steamcommunity.com/sharedfiles/filedetails/?id=3378303543)
+  - [[Reworked] Madax-Workshop Compatibility Patch](https://steamcommunity.com/sharedfiles/filedetails/?id=2942816020)
+
+- Github
+  - [Know Your Calories](https://github.com/alejandrohluis/Know-Your-Calories)
+  - [Craftable Tires](https://github.com/alejandrohluis/Craftable-Tires)
+
 ## Description:
 ### Shows your Character's Calories on the Info Tab
 
@@ -48,11 +58,3 @@ After obtaining cooking level 5 or the nutritionist trait, your player's calorie
 > <strike>Add an option to only show the character's calories if you have the Nutritionist Trait</strike>
 
 > <strike>Correct text alignment when using higher font sizes.</strike>
-
-If you like the mod please consider dropping a rating and a favorite.
-![alt text](https://i.imgur.com/31mCw6B.png/gif)
-
-Do not copy or reupload this mod. If you wish to add it to a modpack, use the Steam Collection feature.
-
-Workshop ID: 3257953004
-Mod ID: KnowYourCalories
