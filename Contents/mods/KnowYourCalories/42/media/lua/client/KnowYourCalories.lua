@@ -19,142 +19,228 @@ lcl.tm_MeasureStringX = lcl.tm_base.MeasureStringX
 lcl.getPlayer         = getPlayer
 lcl.getText           = getText
 lcl.drawRect          = drawRect
+-- drawText(text, positionX, positionY, r ,g ,b , alpha, font)
+-- drawRect(positionX, positionY, width, height, r, g, b, alpha)
 -------------------------------------------------------------------------------
+
+-------- Shared variables and functions --------
+
 local KnowYourCalories_IsSetup = false
 
-local function KnowYourCalories_Setup()
-    if not KnowYourCalories_IsSetup then
-        KnowYourCalories_IsSetup = true
-        local charScreen_render = ISCharacterScreen.render
-        function ISCharacterScreen:render()
-            local result = charScreen_render(self)
-            if SandboxVars.KnowYourCalories.UseProgressBar then
-                self:render_KYC_DisplayCalorieBar()
-            else
-                self:render_KYC_DisplayCalorieNumber()
-            end
-            return result
-        end
-    end
+local rounding = 0
+local textManager = getTextManager()
+local needNutritionist = false
+local sandboxCaloriesLevel = 0
+local sandboxProteinsLevel = 0
+local sandboxOthersLevel = 0
+local lowestCookingLevelNeeded = 0
+local isBarDescriptionEnabled = false
+local hasNutritionist
+
+local nutritionX = 0
+local nutritionZ = 0
+local windowHeight = 0
+local spacing = 0
+
+local function toStringNutrientValue(nutrientValue)
+    return string.format(round(nutrientValue, rounding))
 end
 
-function ISCharacterScreen:render_KYC_NutrientBarDescription(barPositionX, barPositionY, nutrient, nutrientValue)
-    local mouseX = self:getMouseX()
-    local mouseY = self:getMouseY()
-    -- checking for OR is easier or equal than checking for AND
-    if !((mouseX < barPositionX or mouseX > barPositionX + 10) or (mouseY < barPositionY or mouseY > barPositionY + 100)) then
-        local nutrientName = getText("UI_"..nutrient)
-        local nameWidth = getTextManager():MeasureStringX(UIFont.Small, nutrientName)
-        local nutrientHeight = getTextManager():getFontHeight(UIFont.Small)
-        if not SandboxVars.KnowYourCalories.ProgressBarDescription then nutrientHeight = nutrientHeight / 2.25 end
-        local descriptionPositionX = self.width - nameWidth - 15
-        local descriptionPositionZ = self.height - 110 - nutrientHeight * 2.25
-        self:drawRect(descriptionPositionX, descriptionPositionZ, nameWidth + 10, nutrientHeight * 2.25, 1.0, 0.4, 0.4, 0.4)
-        self:drawRect(descriptionPositionX + 1, descriptionPositionZ + 1, nameWidth + 8, nutrientHeight * 2.25 - 2, 0.8, 0.0, 0.0, 0.0)
-        self:drawText(nutrientName, descriptionPositionX + 5, descriptionPositionZ, 1, 1, 1, 1, UIFont.Small)
-        if SandboxVars.KnowYourCalories.ProgressBarDescription then
-            self:drawText(nutrientValue, descriptionPositionX + 5, descriptionPositionZ + nutrientHeight, 1, 1, 1, 0.5, UIFont.Small)
-        end
-    end
+local function checkNutritionistTrait()
+    local player = lcl.getPlayer()
+    hasNutritionist = player:HasTrait("Nutritionist") or player:HasTrait("Nutritionist2")
 end
 
-function ISCharacterScreen:render_KYC_DisplayCalorieNumber()
+local function setupLocalVars()
+    rounding = -SandboxVars.KnowYourCalories.Rounding + 1
+    textManager = getTextManager()
+    needNutritionist = SandboxVars.KnowYourCalories.NeedNutritionist
+    sandboxCaloriesLevel = SandboxVars.KnowYourCalories.NeedCookingLevelForCalories
+    sandboxProteinsLevel = SandboxVars.KnowYourCalories.NeedCookingLevelForProteins
+    sandboxOthersLevel = SandboxVars.KnowYourCalories.NeedCookingLevelForOthers
+    lowestCookingLevelNeeded = math.min(sandboxCaloriesLevel, (math.min(sandboxProteinsLevel, sandboxOthersLevel) ) )
+    if(SandboxVars.KnowYourCalories.UseProgressBar) then
+        isBarDescriptionEnabled = SandboxVars.KnowYourCalories.ProgressBarDescription
+        spacing = 15
+    else
+        spacing = textManager:getFontHeight(UIFont.Small) + 6
+    end
+    checkNutritionistTrait()
+end
+
+local function checkLevelCondition(player, levelRequirement)
+    local isNutritionist = needNutritionist and hasNutritionist
+    return isNutritionist or player:getPerkLevel(Perks.Cooking) >= levelRequirement
+end
+
+-------------------------------------------------------------------------------
+
+-------- Display Nutrient Numbers --------
+
+function ISCharacterScreen:render_KYC_drawNutrientNumber(nutrientType, nutrientValue)
+    local nutrientText = "UI_"..nutrientType
+    local nutrientAmount = toStringNutrientValue(nutrientValue)
+
+    self:drawTextRight(getText(nutrientText), nutritionX, nutritionZ, 1, 1, 1, 1, UIFont.Small)
+    self:drawText(nutrientAmount, nutritionX + 10, nutritionZ, 1, 1, 1, 0.5, UIFont.Small)
+    windowHeight = windowHeight + spacing
+    nutritionZ = windowHeight - 10
+end
+
+function ISCharacterScreen:render_KYC_DisplayNutrientNumbers()
     local player = self.char or lcl.getPlayer()
-    local hasNutritionist = SandboxVars.KnowYourCalories.NeedNutritionist and (player:HasTrait("Nutritionist") or player:HasTrait("Nutritionist2"))
-    local lowestCookingLevelNeeded = math.min(SandboxVars.KnowYourCalories.NeedCookingLevelForCalories,math.min(SandboxVars.KnowYourCalories.NeedCookingLevelForProteins,SandboxVars.KnowYourCalories.NeedCookingLevelForOthers))
-    if player:getPerkLevel(Perks.Cooking) >= lowestCookingLevelNeeded or hasNutritionist then
-        local textManager = getTextManager()
-        local FONT_HGT_SMALL = textManager:getFontHeight(UIFont.Small)
-
+    if checkLevelCondition(player, lowestCookingLevelNeeded) then
         -- this measures and compares 3 different texts, then uses the longest one, 
         -- ensuring that it is well positioned with all languages supported by the mod
         local textWidth1 = lcl.tm_MeasureStringX(textManager, UIFont.Small, lcl.getText("IGUI_char_Favourite_Weapon"))
         local textWidth2 = lcl.tm_MeasureStringX(textManager, UIFont.Small, lcl.getText("IGUI_char_Zombies_Killed"))
         local textWidth3 = lcl.tm_MeasureStringX(textManager, UIFont.Small, lcl.getText("IGUI_char_Survived_For"))
-        local nutritionX = 20 + math.max(textWidth1,math.max(textWidth2,textWidth3))
-        
-        local windowHeight = self.height
+        nutritionX = 20 + math.max(textWidth1,math.max(textWidth2,textWidth3))
+
+        windowHeight = self.height
+
         local clock = UIManager.getClock()
         if not (instanceof(self.char, 'IsoPlayer') and clock and clock:isDateVisible()) then
-            windowHeight = windowHeight - FONT_HGT_SMALL - 6
+            windowHeight = windowHeight - spacing
         end
-        local nutritionZ = windowHeight - 10
-        local rounding = -SandboxVars.KnowYourCalories.Rounding + 1
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForCalories or hasNutritionist then
-            local calories = string.format(round(player:getNutrition():getCalories(), rounding))
-            self:drawTextRight(getText("UI_Calories"), nutritionX, nutritionZ, 1, 1, 1, 1, UIFont.Small)
-            self:drawText(calories, nutritionX + 10, nutritionZ, 1, 1, 1, 0.5, UIFont.Small)
-            windowHeight = windowHeight + FONT_HGT_SMALL + 6
-            nutritionZ = windowHeight - 10
+        nutritionZ = windowHeight - 10
+        if checkLevelCondition(player, sandboxCaloriesLevel) then
+            self:render_KYC_drawNutrientNumber("Calories", player:getNutrition():getCalories())
         end
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForProteins or hasNutritionist then
-            local proteins = string.format(round(player:getNutrition():getProteins(), rounding))
-            self:drawTextRight(getText("UI_Proteins"), nutritionX, nutritionZ, 1, 1, 1, 1, UIFont.Small)
-            self:drawText(proteins, nutritionX + 10, nutritionZ, 1, 1, 1, 0.5, UIFont.Small)
-            windowHeight = windowHeight + FONT_HGT_SMALL + 6
-            nutritionZ = windowHeight - 10
+        if checkLevelCondition(player, sandboxProteinsLevel) then
+            self:render_KYC_drawNutrientNumber("Proteins", player:getNutrition():getProteins())
         end
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForOthers or hasNutritionist then
-            local fats = string.format(round(player:getNutrition():getLipids(), rounding))
-            self:drawTextRight(getText("UI_Fats"), nutritionX, nutritionZ, 1, 1, 1, 1, UIFont.Small)
-            self:drawText(fats, nutritionX + 10, nutritionZ, 1, 1, 1, 0.5, UIFont.Small)
-            windowHeight = windowHeight + FONT_HGT_SMALL + 6
-            nutritionZ = windowHeight - 10
-            local carbs = string.format(round(player:getNutrition():getCarbohydrates(), rounding))
-            self:drawTextRight(getText("UI_Carbohydrates"), nutritionX, nutritionZ, 1, 1, 1, 1, UIFont.Small)
-            self:drawText(carbs, nutritionX + 10, nutritionZ, 1, 1, 1, 0.5, UIFont.Small)
-            windowHeight = windowHeight + FONT_HGT_SMALL + 6
-            nutritionZ = windowHeight - 10
+        if checkLevelCondition(player, sandboxOthersLevel) then
+            local fats = player:getNutrition():getLipids()
+            self:render_KYC_drawNutrientNumber("Lipids", fats)
+            local carbs = player:getNutrition():getCarbohydrates()
+            self:render_KYC_drawNutrientNumber("Carbohydrates", carbs)
         end
-        windowHeight = windowHeight + 10
         self:setHeightAndParentHeight(windowHeight)
     end
 end
 
-function ISCharacterScreen:render_KYC_DisplayCalorieBar()
-    local player = self.char or lcl.getPlayer()
-    local hasNutritionist = SandboxVars.KnowYourCalories.NeedNutritionist and (player:HasTrait("Nutritionist") or player:HasTrait("Nutritionist2"))
-    local lowestCookingLevelNeeded = math.min(SandboxVars.KnowYourCalories.NeedCookingLevelForCalories,math.min(SandboxVars.KnowYourCalories.NeedCookingLevelForProteins,SandboxVars.KnowYourCalories.NeedCookingLevelForOthers))
-    if player:getPerkLevel(Perks.Cooking) >= lowestCookingLevelNeeded or hasNutritionist then
-        local nutritionX = self.width - 15
-        local nutritionZ = self.height - 105
-        local backgroundTexture = getTexture("media/textures/background.png")
-        local rounding = -SandboxVars.KnowYourCalories.Rounding + 1
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForOthers or hasNutritionist then
-            local fats = string.format(round(player:getNutrition():getLipids(), rounding))
-            local fatsPercentage = (fats+500)/15.0
-            local fatsTexture = getTexture("media/textures/nutrients.png")
-            self:drawTexture(backgroundTexture, nutritionX, nutritionZ, 0.8, 1, 1, 1)
-            self:drawTextureScaled(fatsTexture, nutritionX, nutritionZ, 10, fatsPercentage, 0.6, 1, 0.94, 0.7)
-            self:render_KYC_NutrientBarDescription(nutritionX, nutritionZ, "Fats", fats)
-            nutritionX = nutritionX - 15
-            local carbs = string.format(round(player:getNutrition():getCarbohydrates(), rounding))
-            local carbsPercentage = (carbs+500)/15.0
-            local carbsTexture = getTexture("media/textures/nutrients.png")
-            self:drawTexture(backgroundTexture, nutritionX, nutritionZ, 0.8, 1, 1, 1)
-            self:drawTextureScaled(carbsTexture, nutritionX, nutritionZ, 10, carbsPercentage, 0.6, 0.55, 1, 0.68)
-            self:render_KYC_NutrientBarDescription(nutritionX, nutritionZ, "Carbohydrates", carbs)
-            nutritionX = nutritionX - 15
-        end
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForProteins or hasNutritionist then
-            local proteins = string.format(round(player:getNutrition():getProteins(), rounding))
-            local proteinsPercentage = (proteins+500)/15.0
-            local proteinsTexture = getTexture("media/textures/nutrients.png")
-            self:drawTexture(backgroundTexture, nutritionX, nutritionZ, 0.8, 1, 1, 1)
-            self:drawTextureScaled(proteinsTexture, nutritionX, nutritionZ+1, 10, proteinsPercentage, 0.6, 1, 0.42, 0.33)
-            self:render_KYC_NutrientBarDescription(nutritionX, nutritionZ, "Proteins", proteins)
-            nutritionX = nutritionX - 15
-        end
-        if player:getPerkLevel(Perks.Cooking) >= SandboxVars.KnowYourCalories.NeedCookingLevelForCalories or hasNutritionist then
-            local calories = string.format(round(player:getNutrition():getCalories(), rounding))
-            local caloriesPercentage = (calories+2200)/59.0
-            local caloriesTexture = getTexture("media/textures/nutrients.png")
-            self:drawTexture(backgroundTexture, nutritionX, nutritionZ, 0.8, 1, 1, 1)
-            self:drawTextureScaled(caloriesTexture, nutritionX, nutritionZ, 10, caloriesPercentage, 0.6, 0.9, 1, 0.2)
-            self:render_KYC_NutrientBarDescription(nutritionX, nutritionZ, "Calories", calories)
+-------------------------------------------------------------------------------
+
+-------- Display Nutrient Bars --------
+
+function ISCharacterScreen:render_KYC_drawNutrientNameBackground(positionX, positionZ, width, height)
+    -- background border
+    self:drawRect(positionX, positionZ, width + 10, height, 1.0, 0.4, 0.4, 0.4)
+    -- background
+    self:drawRect(positionX + 1, positionZ + 1, width + 8, height - 2, 0.8, 0.0, 0.0, 0.0)
+end
+
+function ISCharacterScreen:render_KYC_NutrientBarName(nutrientType, nutrientValue)
+    local mouseX = self:getMouseX()
+    local mouseY = self:getMouseY()
+    -- checking for OR is faster or equal than checking for AND
+    if not ((mouseX < nutritionX or mouseX > nutritionX + 10) or (mouseY < nutritionZ or mouseY > nutritionZ + 100)) then
+        local nutrientText = getText("UI_"..nutrientType)
+        local nameWidth = textManager:MeasureStringX(UIFont.Small, nutrientText)
+        local nameHeight = textManager:getFontHeight(UIFont.Small) * 2.25
+        if not isBarDescriptionEnabled then nameHeight = nameHeight / 2.25 end
+        local boxPositionX = self.width - nameWidth - 15
+        local boxPositionZ = self.height - 110 - nameHeight
+        self:render_KYC_drawNutrientNameBackground(boxPositionX, boxPositionZ, nameWidth, nameHeight)
+        self:drawText(nutrientText, boxPositionX + 5, boxPositionZ, 1, 1, 1, 1, UIFont.Small)
+        if isBarDescriptionEnabled then
+            nameHeight = nameHeight / 2.25
+            local nutrientAmount = toStringNutrientValue(nutrientValue)
+            -- description
+            self:drawText(nutrientAmount, boxPositionX + 5, boxPositionZ + nameHeight, 1, 1, 1, 0.5, UIFont.Small)
         end
     end
 end
 
+local function getNutrientPercentage(nutrientType, nutrientAmount)
+    -- formula:
+    --        ( nutrientAmount + average(nutrientMin,nutrientMax) )
+    -- 100 * -------------------------------------------------------
+    --              sum(nutrientMin, nutrientMax)
+
+    -- values are already simplified to avoid unnecessary calculations
+    if nutrientType == "Calories" then
+        return (nutrientAmount + 2200) / 59.0
+    end
+    return (nutrientAmount+500)/15.0
+end
+
+local function getNutrientBarARGB(nutrientType)
+    -- {alpha, red, green, blue}
+    if nutrientType == "Calories" then
+        return {0.6, 0.9, 1, 0.2}
+    end
+    if nutrientType == "Proteins" then
+        return {0.6, 1, 0.42, 0.33}
+    end
+    if nutrientType == "Carbohydrates" then
+        return {0.6, 0.55, 1, 0.68}
+    end
+    if nutrientType == "Lipids" then
+        return {0.6, 1, 0.94, 0.7}
+    end
+    return {1,1,1,1}
+end
+
+function ISCharacterScreen:render_KYC_drawNutrientBar(nutrientType, nutrientValue, backgroundTexture, nutrientsTexture)
+    local nutrientPercentage = getNutrientPercentage(nutrientType, nutrientValue)
+    local colors = getNutrientBarARGB(nutrientType)
+    self:drawTexture(backgroundTexture, nutritionX, nutritionZ, 0.8, 1, 1, 1)
+    self:drawTextureScaled(nutrientsTexture, nutritionX, nutritionZ, 10, nutrientPercentage, colors[1], colors[2], colors[3], colors[4])
+    self:render_KYC_NutrientBarName(nutrientType, nutrientValue)
+    nutritionX = nutritionX - spacing
+end
+
+function ISCharacterScreen:render_KYC_DisplayNutrientBars()
+    local player = self.char or lcl.getPlayer()
+    if checkLevelCondition(player, lowestCookingLevelNeeded) then
+        nutritionX = self.width - spacing
+        nutritionZ = self.height - 105
+        local backgroundTexture = getTexture("media/textures/background.png")
+        local nutrientsTexture = getTexture("media/textures/nutrients.png")
+        if checkLevelCondition(player, sandboxOthersLevel) then
+            local lipids = player:getNutrition():getLipids()
+            self:render_KYC_drawNutrientBar("Lipids", lipids, backgroundTexture, nutrientsTexture)
+
+            local carbs = player:getNutrition():getCarbohydrates()
+            self:render_KYC_drawNutrientBar("Carbohydrates", carbs, backgroundTexture, nutrientsTexture)
+        end
+        if checkLevelCondition(player, sandboxProteinsLevel) then
+            local proteins = player:getNutrition():getProteins()
+            self:render_KYC_drawNutrientBar("Proteins", proteins, backgroundTexture, nutrientsTexture)
+        end
+        if checkLevelCondition(player, sandboxCaloriesLevel) then
+            local calories = player:getNutrition():getCalories()
+            self:render_KYC_drawNutrientBar("Calories", calories, backgroundTexture, nutrientsTexture)
+        end
+    end
+end
+
+-------------------------------------------------------------------------------
+
+-------- SETUP  --------
+
+local function KnowYourCalories_Setup()
+    if KnowYourCalories_IsSetup then
+        return
+    end
+    KnowYourCalories_IsSetup = true
+
+    print("KYC Initialized")
+    setupLocalVars()
+    local charScreen_render = ISCharacterScreen.render
+    function ISCharacterScreen:render()
+        local result = charScreen_render(self)
+        if SandboxVars.KnowYourCalories.UseProgressBar then
+            self:render_KYC_DisplayNutrientBars()
+        else
+            self:render_KYC_DisplayNutrientNumbers()
+        end
+        return result
+    end
+end
+
 Events.OnGameStart.Add(KnowYourCalories_Setup)
+Events.EveryTenMinutes.Add(checkNutritionistTrait)
 -------------------------------------------------------------------------------

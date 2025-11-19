@@ -1,6 +1,8 @@
 # Know Your Calories
 A mod for the game "Project Zomboid"
 
+version 2.2
+
 ### Links to my other Mods
 - Steam
   - [Know Your Calories](https://steamcommunity.com/sharedfiles/filedetails/?id=3257953004)
