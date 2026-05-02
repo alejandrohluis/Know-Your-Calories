@@ -80,8 +80,8 @@ end
 function ISCharacterScreen:render_KYC_DisplayNutrientNumbers()
     local player = self.char or lcl.getPlayer()
     local cookingLevel = player:getPerkLevel(Perks.Cooking)
-    local isNutritionist = needNutritionist and (player:HasTrait(CharacterTrait.NUTRITIONIST) or player:HasTrait(CharacterTrait.NUTRITIONIST2))
-    if isNutritionist or cookingLevel > lowestCookingLevelNeeded then
+    local isNutritionist = needNutritionist and (player:hasTrait(CharacterTrait.NUTRITIONIST) or player:hasTrait(CharacterTrait.NUTRITIONIST2))
+    if isNutritionist or cookingLevel >= lowestCookingLevelNeeded then
         -- this measures and compares 3 different texts, then uses the longest one, 
         -- ensuring that it is well positioned with all languages supported by the mod
         local textWidth1 = lcl.tm_MeasureStringX(textManager, small_font, lcl.getText("IGUI_char_Favourite_Weapon"))
@@ -96,15 +96,15 @@ function ISCharacterScreen:render_KYC_DisplayNutrientNumbers()
             windowHeight = windowHeight - spacing
         end
         nutritionZ = windowHeight - 10
-        if isNutritionist or cookingLevel > sandboxCaloriesLevel then
+        if isNutritionist or cookingLevel >= sandboxCaloriesLevel then
             local calories = player:getNutrition():getCalories()
             self:render_KYC_drawNutrientNumber("Calories", calories)
         end
-        if isNutritionist or cookingLevel > sandboxProteinsLevel then
+        if isNutritionist or cookingLevel >= sandboxProteinsLevel then
             local proteins = player:getNutrition():getProteins()
             self:render_KYC_drawNutrientNumber("Proteins", proteins)
         end
-        if isNutritionist or cookingLevel > sandboxOthersLevel then
+        if isNutritionist or cookingLevel >= sandboxOthersLevel then
             local fats = player:getNutrition():getLipids()
             self:render_KYC_drawNutrientNumber("Lipids", fats)
             local carbs = player:getNutrition():getCarbohydrates()
@@ -169,23 +169,23 @@ function ISCharacterScreen:render_KYC_DisplayNutrientBars()
     local player = self.char or lcl.getPlayer()
     local cookingLevel = player:getPerkLevel(Perks.Cooking)
     local isNutritionist = needNutritionist and (player:hasTrait(CharacterTrait.NUTRITIONIST) or player:hasTrait(CharacterTrait.NUTRITIONIST2))
-    if isNutritionist or cookingLevel > lowestCookingLevelNeeded then
+    if isNutritionist or cookingLevel >= lowestCookingLevelNeeded then
         nutritionX = self.width - spacing
         nutritionZ = self.height - 105
         local backgroundTexture = lcl.getTexture("media/textures/background.png")
         local nutrientsTexture = lcl.getTexture("media/textures/nutrients.png")
-        if isNutritionist or cookingLevel > sandboxOthersLevel then
+        if isNutritionist or cookingLevel >= sandboxOthersLevel then
             local lipids = player:getNutrition():getLipids()
             self:render_KYC_drawNutrientBar("Lipids", lipids, backgroundTexture, nutrientsTexture, {0.6, 1, 0.94, 0.7})
 
             local carbs = player:getNutrition():getCarbohydrates()
             self:render_KYC_drawNutrientBar("Carbohydrates", carbs, backgroundTexture, nutrientsTexture, {0.6, 0.55, 1, 0.68})
         end
-        if isNutritionist or cookingLevel > sandboxProteinsLevel then
+        if isNutritionist or cookingLevel >= sandboxProteinsLevel then
             local proteins = player:getNutrition():getProteins()
             self:render_KYC_drawNutrientBar("Proteins", proteins, backgroundTexture, nutrientsTexture, {0.6, 1, 0.42, 0.33})
         end
-        if isNutritionist or cookingLevel > sandboxCaloriesLevel then
+        if isNutritionist or cookingLevel >= sandboxCaloriesLevel then
             local calories = player:getNutrition():getCalories()
             self:render_KYC_drawNutrientBar("Calories", calories, backgroundTexture, nutrientsTexture, {0.6, 0.9, 1, 0.2})
         end
