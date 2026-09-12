@@ -92,6 +92,11 @@ function ISNutritionDisplayPanel:new(width, height, player)
     return o
 end
 
+function ISNutritionDisplayPanel:prerender()
+    self:updatePosition()
+    ISPanel.prerender(self)
+end
+
 function ISNutritionDisplayPanel:addEvents()
     Events.LevelPerk.Add(self.updatePerk)
     Events.OnPlayerUpdate.Add(self.updateTrait)
@@ -498,7 +503,7 @@ local function kycSetup(classHooked, originalCreateChildren)
     setupLocalVars()
 
     local PanelStyle = (SandboxVars.KnowYourCalories.UseProgressBar and ISNutritionBarsPanel) or ISNutritionQuantityPanel
-    
+
     originalCreateChildren(classHooked)
 
     local nutritionPanel = PanelStyle:new(classHooked.charScreen.char)
